@@ -4,7 +4,13 @@
 
 ## 模块与业务流程
 数据接入（JSON/CSV、字段验证、批次指纹）→ 参数化分析（异步 Python worker）→ 结果复核（指标、图形、明细、解释、批准）→ 定时分发（本地收件箱、CSV/JSON、SHA256）；另有业务总览和审计轨迹。
-三个贯穿全栈的实体：Dataset 数据批次、Job 分析任务、Report 分发计划；辅助 User、Audit、Delivery。
+三个贯穿全栈的实体：Dataset 数据批次、Job 分析任务、Report 分发计划；辅助 User、Audit、Delivery。后端所有校验、持久化和算法在服务端。无前端打包步骤。
+
+## 求车接报与对账结算
+缺车时只看借成数会漏掉求车，新增独立链路（口径见 [BUSINESS.md](BUSINESS.md)）：
+求车接报（`BikeRequest`，按自然键幂等去重）→ 截止点结算（`SettlementRun`/`SettlementItem`，同一截止点取数、晚到留版、重试幂等；借成按站点时段与观测对账，对不上暂挂不结算）→ 求车研究（借成量与求车量控制通勤后的偏相关，标出结算依据与差异时段）。
+- 后端：`src/services/requests_core.py` 为不依赖第三方库的纯函数口径（归组/对账/偏相关/确定性种子），`requests_service.py` 负责持久化与并发（Postgres 事务级咨询锁 + cutoff 唯一约束），路由前缀 `/requests`。
+- 前端：`求车接报` 页接报与按截止点结算、查看暂挂明细；`求车研究` 页选择结算版本查看偏相关对照与差异时段。观察员只读，分析员/负责人可接报与结算。
 
 ## 快速启动
 ```bash
